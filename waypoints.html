@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Street View - 22 Waypoint Route</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+        background: #000;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #route-info {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        color: #00ff00;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 14px;
+        border: 3px solid #00ff00;
+        z-index: 1000;
+        min-width: 380px;
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      }
+
+      #route-info h3 {
+        margin: 0 0 12px 0;
+        color: #ffff00;
+        font-size: 16px;
+        text-transform: uppercase;
+        border-bottom: 2px solid #00ff00;
+        padding-bottom: 8px;
+      }
+
+      .coord-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 8px;
+        margin: 2px 0;
+        background: rgba(0, 255, 0, 0.1);
+        border-left: 2px solid #00ff00;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+
+      .coord-label {
+        color: #ffff00;
+        min-width: 50px;
+        font-weight: bold;
+      }
+
+      .coord-value {
+        color: #00ff00;
+        font-weight: bold;
+        text-align: right;
+        min-width: 70px;
+      }
+
+      .section-title {
+        font-size: 11px;
+        color: #ffff00;
+        margin-top: 8px;
+        margin-bottom: 4px;
+        font-weight: bold;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 25px;
+        background: #333;
+        border-radius: 5px;
+        overflow: hidden;
+        border: 1px solid #00ff00;
+        margin: 10px 0;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00ff00, #00cc00);
+        transition: width 0.2s ease-out;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: #000;
+        font-weight: bold;
+      }
+
+      #waypoint-counter {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        color: #ffff00;
+        padding: 20px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 16px;
+        border: 3px solid #ffff00;
+        z-index: 1001;
+        text-align: center;
+        box-shadow: 0 0 20px rgba(255, 255, 0, 0.5);
+      }
+
+      .waypoint-number {
+        font-size: 52px;
+        color: #00ff00;
+        font-weight: bold;
+        margin: 10px 0;
+      }
+
+      .waypoint-name {
+        font-size: 11px;
+        color: #ffff00;
+        margin-top: 10px;
+        border-top: 2px solid #ffff00;
+        padding-top: 8px;
+        max-width: 200px;
+        word-wrap: break-word;
+      }
+
+      #instructions {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.95);
+        color: #00ff00;
+        padding: 15px;
+        border-radius: 8px;
+        font-family: monospace;
+        font-size: 12px;
+        border: 2px solid #00ff00;
+        z-index: 1001;
+        max-width: 300px;
+      }
+
+      #instructions h4 {
+        color: #ffff00;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+
+      #instructions p {
+        margin: 4px 0;
+        line-height: 1.4;
+      }
+
+      .shortcut {
+        color: #ffff00;
+        font-weight: bold;
+      }
+
+      .lil-gui {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="instructions">
+      <h4>🎮 SCROLL ONLY</h4>
+      <p><span class="shortcut">⬆ SCROLL UP</span></p>
+      <p style="margin-left: 10px">Previous Waypoint</p>
+      <p style="margin-top: 8px"><span class="shortcut">⬇ SCROLL DOWN</span></p>
+      <p style="margin-left: 10px">Next Waypoint</p>
+      <hr style="border: none; border-top: 1px solid #00ff00; margin: 8px 0" />
+      <p style="font-size: 10px; color: #ffff00">
+        22 waypoints - No drag/keyboard controls
+      </p>
+    </div>
+
+    <div id="waypoint-counter">
+      <div>📍 WAYPOINT</div>
+      <div class="waypoint-number" id="current-waypoint">1</div>
+      <div style="color: #00ff00; font-size: 13px" id="waypoint-total">of 22</div>
+      <div class="waypoint-name" id="waypoint-name">Waypoint 1</div>
+    </div>
+
+    <div id="route-info">
+      <h3>📍 LIVE POSITION</h3>
+
+      <div
+        style="margin-bottom: 8px; color: #ffff00; font-weight: bold"
+        id="location-name"
+      >
+        Waypoint 1
+      </div>
+
+      <div class="section-title">Position (X, Y, Z)</div>
+      <div class="coord-row">
+        <span class="coord-label">X:</span>
+        <span class="coord-value" id="pos-x">11.65</span>
+      </div>
+      <div class="coord-row">
+        <span class="coord-label">Y:</span>
+        <span class="coord-value" id="pos-y">5.00</span>
+      </div>
+      <div class="coord-row">
+        <span class="coord-label">Z:</span>
+        <span class="coord-value" id="pos-z">215.62</span>
+      </div>
+
+      <div class="section-title">Rotation (Pitch, Yaw)</div>
+      <div class="coord-row">
+        <span class="coord-label">Pitch:</span>
+        <span class="coord-value" id="rot-x">0.13</span>
+      </div>
+      <div class="coord-row">
+        <span class="coord-label">Yaw:</span>
+        <span class="coord-value" id="rot-y">0.05</span>
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width: 4.55%">
+          1/22
+        </div>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.158.0/build/three.module.js?module",
+          "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      directionalLight.position.set(5, 10, 7);
+      scene.add(directionalLight);
+
+      let model;
+      const loader = new GLTFLoader();
+
+      const streetView = {
+        position: new THREE.Vector3(0, 5, 100),
+        pitch: 0,
+        yaw: 0,
+        roll: 0,
+      };
+
+      const routeState = {
+        currentWaypoint: 0,
+        transitionProgress: 0,
+        waypoints: [
+          { id: 1, position: new THREE.Vector3(11.65, 5.0, 215.62), pitch: 0.13, yaw: 0.05, roll: 0.0, name: "Waypoint 1" },
+          { id: 2, position: new THREE.Vector3(8.06, 5.0, 143.85), pitch: 0.17, yaw: -0.03, roll: 0.0, name: "Waypoint 2" },
+          { id: 3, position: new THREE.Vector3(12.55, 5.0, 15.43), pitch: 0.17, yaw: -0.03, roll: 0.0, name: "Waypoint 3" },
+          { id: 4, position: new THREE.Vector3(15.25, 5.0, -100.4), pitch: -0.13, yaw: 0.01, roll: 0.0, name: "Waypoint 4" },
+          { id: 5, position: new THREE.Vector3(13.86, 5.0, -240.06), pitch: -0.13, yaw: 0.01, roll: 0.0, name: "Waypoint 5" },
+          { id: 6, position: new THREE.Vector3(23.38, 5.0, -372.36), pitch: -0.33, yaw: 1.43, roll: 0.0, name: "Waypoint 6" },
+          { id: 7, position: new THREE.Vector3(-36.22, 5.0, -375.18), pitch: -0.84, yaw: 1.39, roll: 0.0, name: "Waypoint 7" },
+          { id: 8, position: new THREE.Vector3(-78.07, 5.0, -377.60), pitch: -0.64, yaw: 2.47, roll: 0.0, name: "Waypoint 8" },
+          { id: 9, position: new THREE.Vector3(-84.74, 5.0, -367.12), pitch: -0.39, yaw: 3.08, roll: 0.0, name: "Waypoint 9" },
+          { id: 10, position: new THREE.Vector3(-86.05, 5.0, -345.96), pitch: -0.39, yaw: 3.08, roll: 0.0, name: "Waypoint 10" },
+          { id: 11, position: new THREE.Vector3(-88.69, 5.0, -303.86), pitch: -0.39, yaw: 3.08, roll: 0.0, name: "Waypoint 11" },
+          { id: 12, position: new THREE.Vector3(-88.17, 5.0, -274.48), pitch: -0.36, yaw: 3.13, roll: 0.0, name: "Waypoint 12" },
+          { id: 13, position: new THREE.Vector3(-87.39, 5.0, -206.07), pitch: -0.36, yaw: 3.29, roll: 0.0, name: "Waypoint 13" },
+          { id: 14, position: new THREE.Vector3(-82.48, 5.0, -181.49), pitch: -0.55, yaw: 3.28, roll: 0.0, name: "Waypoint 14" },
+          { id: 15, position: new THREE.Vector3(-79.57, 5.0, -163.28), pitch: -0.32, yaw: 3.35, roll: 0.0, name: "Waypoint 15" },
+          { id: 16, position: new THREE.Vector3(-71.87, 5.0, -128.30), pitch: -0.10, yaw: 3.50, roll: 0.0, name: "Waypoint 16" },
+          { id: 17, position: new THREE.Vector3(-57.45, 5.0, -89.21), pitch: -0.10, yaw: 3.50, roll: 0.0, name: "Waypoint 17" },
+          { id: 18, position: new THREE.Vector3(-37.95, 5.0, -36.37), pitch: -0.10, yaw: 3.50, roll: 0.0, name: "Waypoint 18" },
+          { id: 19, position: new THREE.Vector3(3.82, 5.0, 48.15), pitch: -0.13, yaw: 3.54, roll: 0.0, name: "Waypoint 19" },
+          { id: 20, position: new THREE.Vector3(11.58, 5.0, 70.41), pitch: 0.00, yaw: 3.29, roll: 0.0, name: "Waypoint 20" },
+          { id: 21, position: new THREE.Vector3(15.60, 5.0, 100.82), pitch: 0.02, yaw: 3.23, roll: 0.0, name: "Waypoint 21" },
+          { id: 22, position: new THREE.Vector3(15.60, 5.0, 100.82), pitch: 0.02, yaw: 3.23, roll: 0.0, name: "Waypoint 22 - Final" },
+        ],
+      };
+
+      loader.load(
+        "./city.glb",
+        (gltf) => {
+          model = gltf.scene;
+          model.position.set(20, -10, 170);
+          scene.add(model);
+          initializeRoute();
+        },
+        undefined,
+        (error) => {
+          console.error("Error loading model:", error);
+        }
+      );
+
+      function updateUI() {
+        const current = routeState.currentWaypoint + 1;
+        const total = routeState.waypoints.length;
+        const progress = (current / total) * 100;
+        const waypoint = routeState.waypoints[routeState.currentWaypoint];
+
+        document.getElementById("current-waypoint").textContent = current;
+        document.getElementById("waypoint-name").textContent = waypoint.name;
+        document.getElementById("location-name").textContent = waypoint.name;
+        document.getElementById("progress-fill").style.width = progress + "%";
+        document.getElementById("progress-fill").textContent = `${current}/${total}`;
+
+        document.getElementById("pos-x").textContent = streetView.position.x.toFixed(2);
+        document.getElementById("pos-y").textContent = streetView.position.y.toFixed(2);
+        document.getElementById("pos-z").textContent = streetView.position.z.toFixed(2);
+        document.getElementById("rot-x").textContent = streetView.pitch.toFixed(2);
+        document.getElementById("rot-y").textContent = streetView.yaw.toFixed(2);
+      }
+
+      function interpolateWaypoints() {
+        const currentWP = routeState.waypoints[routeState.currentWaypoint];
+        const nextWaypoint = routeState.waypoints[Math.min(routeState.currentWaypoint + 1, routeState.waypoints.length - 1)];
+
+        const progress = routeState.transitionProgress;
+
+        streetView.position.lerpVectors(currentWP.position, nextWaypoint.position, progress);
+
+        streetView.pitch = currentWP.pitch + (nextWaypoint.pitch - currentWP.pitch) * progress;
+
+        let yawDiff = nextWaypoint.yaw - currentWP.yaw;
+        if (yawDiff > Math.PI) yawDiff -= 2 * Math.PI;
+        if (yawDiff < -Math.PI) yawDiff += 2 * Math.PI;
+        streetView.yaw = currentWP.yaw + yawDiff * progress;
+
+        streetView.roll = currentWP.roll + (nextWaypoint.roll - currentWP.roll) * progress;
+      }
+
+      function initializeRoute() {
+        const wp = routeState.waypoints[0];
+        streetView.position.copy(wp.position);
+        streetView.pitch = wp.pitch;
+        streetView.yaw = wp.yaw;
+        streetView.roll = wp.roll;
+        updateUI();
+      }
+
+      let scrollAccumulator = 0;
+      const scrollSensitivity = 0.0001;
+
+      // ONLY SCROLL WHEEL CONTROL - NO DRAG OR KEYBOARD
+      window.addEventListener("wheel", (event) => {
+        event.preventDefault();
+
+        scrollAccumulator += event.deltaY * scrollSensitivity;
+
+        while (scrollAccumulator >= 1 && routeState.currentWaypoint < routeState.waypoints.length - 1) {
+          scrollAccumulator -= 1;
+          routeState.currentWaypoint++;
+          routeState.transitionProgress = 0;
+          updateUI();
+        }
+
+        while (scrollAccumulator <= -1 && routeState.currentWaypoint > 0) {
+          scrollAccumulator += 1;
+          routeState.currentWaypoint--;
+          routeState.transitionProgress = 1;
+          updateUI();
+        }
+
+        if (scrollAccumulator > 0) {
+          routeState.transitionProgress = scrollAccumulator;
+        } else if (scrollAccumulator < 0) {
+          routeState.transitionProgress = 1 + scrollAccumulator;
+        }
+
+        interpolateWaypoints();
+      }, { passive: false });
+
+      // DISABLE ALL OTHER INTERACTIONS
+      document.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+      }, true);
+
+      document.addEventListener("mousemove", (event) => {
+        event.preventDefault();
+      }, true);
+
+      document.addEventListener("mouseup", (event) => {
+        event.preventDefault();
+      }, true);
+
+      document.addEventListener("mouseleave", (event) => {
+        event.preventDefault();
+      }, true);
+
+      window.addEventListener("keydown", (e) => {
+        e.preventDefault();
+      }, true);
+
+      window.addEventListener("keyup", (e) => {
+        e.preventDefault();
+      }, true);
+
+      document.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      }, true);
+
+      function animate() {
+        camera.position.copy(streetView.position);
+        camera.rotation.order = "YXZ";
+        camera.rotation.y = streetView.yaw;
+        camera.rotation.x = streetView.pitch;
+        camera.rotation.z = streetView.roll;
+
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+
+      animate();
+
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
